@@ -1,0 +1,21 @@
+node_modules/
+
+# logs
+logs/
+*.log
+
+# local env files
+.env
+.env.local
+
+# runtime files
+pids/
+*.pid
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
