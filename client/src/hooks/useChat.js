@@ -1,5 +1,13 @@
 import { useState, useCallback, useRef } from 'react';
-import { api } from '../utils/api.js';
+import {
+  getConversations,
+  getConversation,
+  createConversation as apiCreateConversation,
+  updateConversation as apiUpdateConversation,
+  deleteConversation as apiDeleteConversation,
+  clearConversationMessages,
+  streamChat
+} from '../utils/api.js';
 
 export function useChat() {
   const [conversations, setConversations] = useState([]);
@@ -13,7 +21,7 @@ export function useChat() {
   // Load conversation list
   const loadConversations = useCallback(async () => {
     try {
-      const list = await api.getConversations();
+      const list = await getConversations();
       setConversations(list);
     } catch (err) {
       setError(err.message);
@@ -25,7 +33,7 @@ export function useChat() {
     setIsLoading(true);
     setError(null);
     try {
-      const conv = await api.getConversation(sessionId);
+      const conv = await getConversation(sessionId);
       setActiveConversation(conv);
     } catch (err) {
       setError(err.message);
@@ -37,7 +45,7 @@ export function useChat() {
   // Create new conversation
   const createConversation = useCallback(async (options = {}) => {
     try {
-      const conv = await api.createConversation(options);
+      const conv = await apiCreateConversation(options);
       setConversations(prev => [conv, ...prev]);
       setActiveConversation(conv);
       return conv;
@@ -48,7 +56,7 @@ export function useChat() {
 
   // Delete conversation
   const deleteConversation = useCallback(async (sessionId) => {
-    await api.deleteConversation(sessionId);
+    await apiDeleteConversation(sessionId);
     setConversations(prev => prev.filter(c => c.sessionId !== sessionId));
     if (activeConversation?.sessionId === sessionId) {
       setActiveConversation(null);
@@ -74,16 +82,15 @@ export function useChat() {
 
     let accumulated = '';
 
-    await api.streamMessage(activeConversation.sessionId, text, {
-      onStart: ({ model, provider }) => {
-        console.log(`Streaming from ${provider}/${model}`);
-      },
+    await streamChat({
+      sessionId: activeConversation.sessionId,
+      message: text,
       onChunk: (chunk) => {
         if (abortRef.current) return;
         accumulated += chunk;
         setStreamingText(accumulated);
       },
-      onDone: async ({ title }) => {
+      onDone: ({ title }) => {
         const assistantMessage = {
           role: 'assistant',
           content: accumulated,
@@ -120,7 +127,7 @@ export function useChat() {
   const updateConversation = useCallback(async (updates) => {
     if (!activeConversation) return;
     try {
-      const updated = await api.updateConversation(activeConversation.sessionId, updates);
+      const updated = await apiUpdateConversation(activeConversation.sessionId, updates);
       setActiveConversation(updated);
       setConversations(prev =>
         prev.map(c => c.sessionId === updated.sessionId ? { ...c, ...updates } : c)
@@ -134,7 +141,7 @@ export function useChat() {
   const clearMessages = useCallback(async () => {
     if (!activeConversation) return;
     try {
-      const updated = await api.clearMessages(activeConversation.sessionId);
+      const updated = await clearConversationMessages(activeConversation.sessionId);
       setActiveConversation(updated);
       setConversations(prev =>
         prev.map(c => c.sessionId === updated.sessionId
