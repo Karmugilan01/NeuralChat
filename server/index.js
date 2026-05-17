@@ -22,16 +22,20 @@ app.set('trust proxy', 1);
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://neural-chat-six.vercel.app'
+  'https://neural-chat-six.vercel.app',   // ✅ no trailing slash
 ];
 
 const corsOptions = {
 
   origin: function (origin, callback) {
 
-    // Allow requests without origin
-    // Postman / server-to-server
+    // Allow requests without origin (Postman / server-to-server)
     if (!origin) {
+      return callback(null, true);
+    }
+
+    // ✅ Allow all Vercel preview deployments for your project
+    if (origin.match(/^https:\/\/neural-chat.*\.vercel\.app$/)) {
       return callback(null, true);
     }
 
@@ -90,7 +94,6 @@ mongoose.connect(
 ───────────────────────────────────────────── */
 
 app.get('/', (req, res) => {
-
   res.json({
     status: 'ok',
     message: 'NeuralChat API is running'
@@ -102,25 +105,16 @@ app.get('/', (req, res) => {
 ───────────────────────────────────────────── */
 
 app.get('/api/conversations', async (req, res) => {
-
   try {
-
     const conversations = await Conversation.find()
-      .select(
-        'sessionId title model provider createdAt updatedAt totalTokens'
-      )
+      .select('sessionId title model provider createdAt updatedAt totalTokens')
       .sort({ updatedAt: -1 })
       .limit(50);
 
     res.json(conversations);
-
   } catch (err) {
-
     console.error(err);
-
-    res.status(500).json({
-      error: err.message
-    });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -129,27 +123,18 @@ app.get('/api/conversations', async (req, res) => {
 ───────────────────────────────────────────── */
 
 app.get('/api/conversations/:sessionId', async (req, res) => {
-
   try {
-
     const conv = await Conversation.findOne({
       sessionId: req.params.sessionId
     });
 
     if (!conv) {
-
-      return res.status(404).json({
-        error: 'Conversation not found'
-      });
+      return res.status(404).json({ error: 'Conversation not found' });
     }
 
     res.json(conv);
-
   } catch (err) {
-
-    res.status(500).json({
-      error: err.message
-    });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -158,14 +143,8 @@ app.get('/api/conversations/:sessionId', async (req, res) => {
 ───────────────────────────────────────────── */
 
 app.post('/api/conversations', async (req, res) => {
-
   try {
-
-    const {
-      systemPrompt,
-      model,
-      provider
-    } = req.body;
+    const { systemPrompt, model, provider } = req.body;
 
     const conv = new Conversation({
       sessionId: uuidv4(),
@@ -175,14 +154,9 @@ app.post('/api/conversations', async (req, res) => {
     });
 
     await conv.save();
-
     res.json(conv);
-
   } catch (err) {
-
-    res.status(500).json({
-      error: err.message
-    });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -191,52 +165,26 @@ app.post('/api/conversations', async (req, res) => {
 ───────────────────────────────────────────── */
 
 app.patch('/api/conversations/:sessionId', async (req, res) => {
-
   try {
-
-    const {
-      systemPrompt,
-      model,
-      provider,
-      title
-    } = req.body;
+    const { systemPrompt, model, provider, title } = req.body;
 
     const conv = await Conversation.findOne({
       sessionId: req.params.sessionId
     });
 
     if (!conv) {
-
-      return res.status(404).json({
-        error: 'Conversation not found'
-      });
+      return res.status(404).json({ error: 'Conversation not found' });
     }
 
-    if (systemPrompt !== undefined) {
-      conv.systemPrompt = systemPrompt;
-    }
-
-    if (model !== undefined) {
-      conv.model = model;
-    }
-
-    if (provider !== undefined) {
-      conv.provider = provider;
-    }
-
-    if (title !== undefined) {
-      conv.title = title;
-    }
+    if (systemPrompt !== undefined) conv.systemPrompt = systemPrompt;
+    if (model !== undefined) conv.model = model;
+    if (provider !== undefined) conv.provider = provider;
+    if (title !== undefined) conv.title = title;
 
     await conv.save();
-
     res.json(conv);
-
   } catch (err) {
-
-    res.status(500).json({
-      error: err.message
-    });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -245,22 +193,11 @@ app.patch('/api/conversations/:sessionId', async (req, res) => {
 ───────────────────────────────────────────── */
 
 app.delete('/api/conversations/:sessionId', async (req, res) => {
-
   try {
-
-    await Conversation.deleteOne({
-      sessionId: req.params.sessionId
-    });
-
-    res.json({
-      success: true
-    });
-
+    await Conversation.deleteOne({ sessionId: req.params.sessionId });
+    res.json({ success: true });
   } catch (err) {
-
-    res.status(500).json({
-      error: err.message
-    });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -269,18 +206,13 @@ app.delete('/api/conversations/:sessionId', async (req, res) => {
 ───────────────────────────────────────────── */
 
 app.delete('/api/conversations/:sessionId/messages', async (req, res) => {
-
   try {
-
     const conv = await Conversation.findOne({
       sessionId: req.params.sessionId
     });
 
     if (!conv) {
-
-      return res.status(404).json({
-        error: 'Conversation not found'
-      });
+      return res.status(404).json({ error: 'Conversation not found' });
     }
 
     conv.messages = [];
@@ -288,14 +220,9 @@ app.delete('/api/conversations/:sessionId/messages', async (req, res) => {
     conv.title = 'New Conversation';
 
     await conv.save();
-
     res.json(conv);
-
   } catch (err) {
-
-    res.status(500).json({
-      error: err.message
-    });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -304,17 +231,11 @@ app.delete('/api/conversations/:sessionId/messages', async (req, res) => {
 ───────────────────────────────────────────── */
 
 app.post('/api/conversations/:sessionId/stream', async (req, res) => {
-
   const { message } = req.body;
 
   if (!message?.trim()) {
-
-    return res.status(400).json({
-      error: 'Message is required'
-    });
+    return res.status(400).json({ error: 'Message is required' });
   }
-
-  /* SSE HEADERS */
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -324,82 +245,44 @@ app.post('/api/conversations/:sessionId/stream', async (req, res) => {
   res.flushHeaders();
 
   const sendEvent = (type, data = {}) => {
-
-    res.write(
-      `data: ${JSON.stringify({
-        type,
-        ...data
-      })}\n\n`
-    );
+    res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
   };
 
   try {
-
     const conv = await Conversation.findOne({
       sessionId: req.params.sessionId
     });
 
     if (!conv) {
-
-      sendEvent('error', {
-        message: 'Conversation not found'
-      });
-
+      sendEvent('error', { message: 'Conversation not found' });
       return res.end();
     }
 
-    /* SAVE USER MESSAGE */
+    conv.messages.push({ role: 'user', content: message });
 
-    conv.messages.push({
-      role: 'user',
-      content: message
-    });
-
-    /* AUTO TITLE */
-
-    const userMessages = conv.messages.filter(
-      (m) => m.role === 'user'
-    );
-
+    const userMessages = conv.messages.filter((m) => m.role === 'user');
     if (userMessages.length === 1) {
       conv.generateTitle();
     }
 
-    sendEvent('start', {
-      model: conv.model,
-      provider: conv.provider
-    });
+    sendEvent('start', { model: conv.model, provider: conv.provider });
 
     let fullResponse = '';
 
     fullResponse = await streamChat({
-
       provider: conv.provider,
-
       model: conv.model,
-
       systemPrompt: conv.systemPrompt,
-
       messages: conv.messages.map((m) => ({
         role: m.role,
         content: m.content
       })),
-
       onChunk: (chunk) => {
-
-        sendEvent('chunk', {
-          text: chunk
-        });
+        sendEvent('chunk', { text: chunk });
       }
     });
 
-    /* SAVE ASSISTANT MESSAGE */
-
-    conv.messages.push({
-      role: 'assistant',
-      content: fullResponse
-    });
-
+    conv.messages.push({ role: 'assistant', content: fullResponse });
     await conv.save();
 
     sendEvent('done', {
@@ -408,15 +291,9 @@ app.post('/api/conversations/:sessionId/stream', async (req, res) => {
     });
 
   } catch (err) {
-
     console.error('❌ Stream Error:', err);
-
-    sendEvent('error', {
-      message: err.message || 'Streaming failed'
-    });
-
+    sendEvent('error', { message: err.message || 'Streaming failed' });
   } finally {
-
     res.end();
   }
 });
@@ -434,13 +311,9 @@ app.get('/api/models', (req, res) => {
 ───────────────────────────────────────────── */
 
 app.get('/api/health', (req, res) => {
-
   res.json({
     status: 'ok',
-    mongodb:
-      mongoose.connection.readyState === 1
-        ? 'connected'
-        : 'disconnected',
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     provider: 'groq'
   });
 });
@@ -450,10 +323,7 @@ app.get('/api/health', (req, res) => {
 ───────────────────────────────────────────── */
 
 app.use((req, res) => {
-
-  res.status(404).json({
-    error: 'Route not found'
-  });
+  res.status(404).json({ error: 'Route not found' });
 });
 
 /* ─────────────────────────────────────────────
