@@ -10,51 +10,78 @@ import { streamChat, MODELS } from './ai.js';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Trust proxy (important for Render/Vercel)
+// ─────────────────────────────────────────────
+// Trust Proxy
+// ─────────────────────────────────────────────
+
 app.set('trust proxy', 1);
 
-// ─────────────────────────────────────────────────────────────
-// CORS
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// CORS Configuration
+// ─────────────────────────────────────────────
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://neural-chat-ten.vercel.app/'
+  'https://neural-chat-5kyf7kevz-karmugilans-projects-b5b79ee8.vercel.app'
 ];
 
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (Postman/mobile apps)
-    if (!origin) return callback(null, true);
+  origin: (origin, callback) => {
 
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+    // Allow requests without origin
+    // (Postman, server-to-server)
+    if (!origin) {
+      return callback(null, true);
     }
+
+    // Allow frontend origins
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // Reject others
+    return callback(new Error('Not allowed by CORS'));
   },
+
+  methods: [
+    'GET',
+    'POST',
+    'PATCH',
+    'DELETE',
+    'OPTIONS'
+  ],
+
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization'
+  ],
+
   credentials: true
 }));
 
+// Handle preflight requests
+app.options('*', cors());
+
 app.use(express.json());
 
-// ─────────────────────────────────────────────────────────────
-// MongoDB
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// MongoDB Connection
+// ─────────────────────────────────────────────
 
 mongoose.connect(
-  process.env.MONGODB_URI || 'mongodb://localhost:27017/ai-chat'
+  process.env.MONGODB_URI ||
+  'mongodb://localhost:27017/ai-chat'
 )
 .then(() => {
   console.log('✅ MongoDB connected');
 })
 .catch((err) => {
-  console.error('❌ MongoDB connection error:', err);
+  console.error('❌ MongoDB Error:', err);
 });
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // Root Route
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 
 app.get('/', (req, res) => {
   res.json({
@@ -63,12 +90,14 @@ app.get('/', (req, res) => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // Get All Conversations
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 
 app.get('/api/conversations', async (req, res) => {
+
   try {
+
     const conversations = await Conversation.find()
       .select(
         'sessionId title model provider createdAt updatedAt totalTokens'
@@ -79,18 +108,21 @@ app.get('/api/conversations', async (req, res) => {
     res.json(conversations);
 
   } catch (err) {
+
     res.status(500).json({
       error: err.message
     });
   }
 });
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // Get Single Conversation
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 
 app.get('/api/conversations/:sessionId', async (req, res) => {
+
   try {
+
     const conv = await Conversation.findOne({
       sessionId: req.params.sessionId
     });
@@ -104,18 +136,21 @@ app.get('/api/conversations/:sessionId', async (req, res) => {
     res.json(conv);
 
   } catch (err) {
+
     res.status(500).json({
       error: err.message
     });
   }
 });
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // Create Conversation
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 
 app.post('/api/conversations', async (req, res) => {
+
   try {
+
     const {
       systemPrompt,
       model,
@@ -125,7 +160,7 @@ app.post('/api/conversations', async (req, res) => {
     const conv = new Conversation({
       sessionId: uuidv4(),
       systemPrompt: systemPrompt || '',
-      model: model || 'llama3-8b-8192',
+      model: model || 'llama-3.3-70b-versatile',
       provider: provider || 'groq'
     });
 
@@ -134,18 +169,21 @@ app.post('/api/conversations', async (req, res) => {
     res.json(conv);
 
   } catch (err) {
+
     res.status(500).json({
       error: err.message
     });
   }
 });
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // Update Conversation
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 
 app.patch('/api/conversations/:sessionId', async (req, res) => {
+
   try {
+
     const {
       systemPrompt,
       model,
@@ -184,18 +222,21 @@ app.patch('/api/conversations/:sessionId', async (req, res) => {
     res.json(conv);
 
   } catch (err) {
+
     res.status(500).json({
       error: err.message
     });
   }
 });
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // Delete Conversation
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 
 app.delete('/api/conversations/:sessionId', async (req, res) => {
+
   try {
+
     await Conversation.deleteOne({
       sessionId: req.params.sessionId
     });
@@ -205,18 +246,21 @@ app.delete('/api/conversations/:sessionId', async (req, res) => {
     });
 
   } catch (err) {
+
     res.status(500).json({
       error: err.message
     });
   }
 });
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // Clear Messages
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 
 app.delete('/api/conversations/:sessionId/messages', async (req, res) => {
+
   try {
+
     const conv = await Conversation.findOne({
       sessionId: req.params.sessionId
     });
@@ -236,15 +280,16 @@ app.delete('/api/conversations/:sessionId/messages', async (req, res) => {
     res.json(conv);
 
   } catch (err) {
+
     res.status(500).json({
       error: err.message
     });
   }
 });
 
-// ─────────────────────────────────────────────────────────────
-// SSE Streaming Endpoint
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// Streaming Chat Endpoint (SSE)
+// ─────────────────────────────────────────────
 
 app.post('/api/conversations/:sessionId/stream', async (req, res) => {
 
@@ -265,6 +310,7 @@ app.post('/api/conversations/:sessionId/stream', async (req, res) => {
   res.flushHeaders();
 
   const sendEvent = (type, data = {}) => {
+
     res.write(
       `data: ${JSON.stringify({
         type,
@@ -280,6 +326,7 @@ app.post('/api/conversations/:sessionId/stream', async (req, res) => {
     });
 
     if (!conv) {
+
       sendEvent('error', {
         message: 'Conversation not found'
       });
@@ -293,7 +340,7 @@ app.post('/api/conversations/:sessionId/stream', async (req, res) => {
       content: message
     });
 
-    // Auto-generate title
+    // Auto generate title
     const userMessages = conv.messages.filter(
       (m) => m.role === 'user'
     );
@@ -309,7 +356,6 @@ app.post('/api/conversations/:sessionId/stream', async (req, res) => {
 
     let fullResponse = '';
 
-    // Stream AI response
     fullResponse = await streamChat({
       provider: conv.provider,
       model: conv.model,
@@ -318,7 +364,9 @@ app.post('/api/conversations/:sessionId/stream', async (req, res) => {
         role: m.role,
         content: m.content
       })),
+
       onChunk: (chunk) => {
+
         sendEvent('chunk', {
           text: chunk
         });
@@ -347,23 +395,25 @@ app.post('/api/conversations/:sessionId/stream', async (req, res) => {
     });
 
   } finally {
+
     res.end();
   }
 });
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // Models
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 
 app.get('/api/models', (req, res) => {
   res.json(MODELS);
 });
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // Health Check
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 
 app.get('/api/health', (req, res) => {
+
   res.json({
     status: 'ok',
     mongodb:
@@ -374,19 +424,20 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // 404 Handler
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 
 app.use((req, res) => {
+
   res.status(404).json({
     error: 'Route not found'
   });
 });
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // Start Server
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
