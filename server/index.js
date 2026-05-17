@@ -17,83 +17,56 @@ const PORT = process.env.PORT || 3001;
 app.set('trust proxy', 1);
 
 /* ─────────────────────────────────────────────
-   CORS FIX
+   CORS
 ───────────────────────────────────────────── */
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://neural-chat-ten.vercel.app',
-  'https://neural-chat-5kyf7kevz-karmugilans-projects-b5b79ee8.vercel.app'
+  'https://neural-chat-ten.vercel.app'
 ];
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
+const corsOptions = {
 
-      // allow requests without origin
-      if (!origin) {
-        return callback(null, true);
-      }
+  origin: function (origin, callback) {
 
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+    // Allow requests without origin
+    // Postman / server-to-server
+    if (!origin) {
+      return callback(null, true);
+    }
 
-      return callback(new Error('Not allowed by CORS'));
-    },
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
 
-    methods: [
-      'GET',
-      'POST',
-      'PATCH',
-      'DELETE',
-      'OPTIONS'
-    ],
+    return callback(
+      new Error(`CORS blocked for origin: ${origin}`)
+    );
+  },
 
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization'
-    ],
+  credentials: true,
 
-    credentials: true
-  })
-);
+  methods: [
+    'GET',
+    'POST',
+    'PATCH',
+    'DELETE',
+    'OPTIONS'
+  ],
 
-/* HANDLE PREFLIGHT */
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization'
+  ]
+};
 
-app.options('*', cors());
+app.use(cors(corsOptions));
 
-/* EXTRA HEADERS */
+/* Handle preflight */
 
-app.use((req, res, next) => {
+app.options(/.*/, cors(corsOptions));
 
-  const origin = req.headers.origin;
-
-  if (allowedOrigins.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-  }
-
-  res.header(
-    'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept, Authorization'
-  );
-
-  res.header(
-    'Access-Control-Allow-Methods',
-    'GET, POST, PATCH, DELETE, OPTIONS'
-  );
-
-  res.header(
-    'Access-Control-Allow-Credentials',
-    'true'
-  );
-
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-
-  next();
-});
+/* JSON */
 
 app.use(express.json());
 
@@ -327,7 +300,7 @@ app.delete('/api/conversations/:sessionId/messages', async (req, res) => {
 });
 
 /* ─────────────────────────────────────────────
-   STREAM CHAT
+   STREAM CHAT (SSE)
 ───────────────────────────────────────────── */
 
 app.post('/api/conversations/:sessionId/stream', async (req, res) => {
@@ -340,6 +313,8 @@ app.post('/api/conversations/:sessionId/stream', async (req, res) => {
       error: 'Message is required'
     });
   }
+
+  /* SSE HEADERS */
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -373,10 +348,14 @@ app.post('/api/conversations/:sessionId/stream', async (req, res) => {
       return res.end();
     }
 
+    /* SAVE USER MESSAGE */
+
     conv.messages.push({
       role: 'user',
       content: message
     });
+
+    /* AUTO TITLE */
 
     const userMessages = conv.messages.filter(
       (m) => m.role === 'user'
@@ -394,9 +373,13 @@ app.post('/api/conversations/:sessionId/stream', async (req, res) => {
     let fullResponse = '';
 
     fullResponse = await streamChat({
+
       provider: conv.provider,
+
       model: conv.model,
+
       systemPrompt: conv.systemPrompt,
+
       messages: conv.messages.map((m) => ({
         role: m.role,
         content: m.content
@@ -409,6 +392,8 @@ app.post('/api/conversations/:sessionId/stream', async (req, res) => {
         });
       }
     });
+
+    /* SAVE ASSISTANT MESSAGE */
 
     conv.messages.push({
       role: 'assistant',
