@@ -10,63 +10,96 @@ import { streamChat, MODELS } from './ai.js';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// ─────────────────────────────────────────────
-// Trust Proxy
-// ─────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   TRUST PROXY
+───────────────────────────────────────────── */
 
 app.set('trust proxy', 1);
 
-// ─────────────────────────────────────────────
-// CORS Configuration
-// ─────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   CORS FIX
+───────────────────────────────────────────── */
 
 const allowedOrigins = [
   'http://localhost:5173',
+  'https://neural-chat-ten.vercel.app',
   'https://neural-chat-5kyf7kevz-karmugilans-projects-b5b79ee8.vercel.app'
 ];
 
-app.use(cors({
-  origin: (origin, callback) => {
+app.use(
+  cors({
+    origin: function (origin, callback) {
 
-    // Allow requests without origin
-    // (Postman, server-to-server)
-    if (!origin) {
-      return callback(null, true);
-    }
+      // allow requests without origin
+      if (!origin) {
+        return callback(null, true);
+      }
 
-    // Allow frontend origins
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
 
-    // Reject others
-    return callback(new Error('Not allowed by CORS'));
-  },
+      return callback(new Error('Not allowed by CORS'));
+    },
 
-  methods: [
-    'GET',
-    'POST',
-    'PATCH',
-    'DELETE',
-    'OPTIONS'
-  ],
+    methods: [
+      'GET',
+      'POST',
+      'PATCH',
+      'DELETE',
+      'OPTIONS'
+    ],
 
-  allowedHeaders: [
-    'Content-Type',
-    'Authorization'
-  ],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization'
+    ],
 
-  credentials: true
-}));
+    credentials: true
+  })
+);
 
-// Handle preflight requests
+/* HANDLE PREFLIGHT */
+
 app.options('*', cors());
+
+/* EXTRA HEADERS */
+
+app.use((req, res, next) => {
+
+  const origin = req.headers.origin;
+
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+  );
+
+  res.header(
+    'Access-Control-Allow-Methods',
+    'GET, POST, PATCH, DELETE, OPTIONS'
+  );
+
+  res.header(
+    'Access-Control-Allow-Credentials',
+    'true'
+  );
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
 
 app.use(express.json());
 
-// ─────────────────────────────────────────────
-// MongoDB Connection
-// ─────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   MONGODB
+───────────────────────────────────────────── */
 
 mongoose.connect(
   process.env.MONGODB_URI ||
@@ -79,20 +112,21 @@ mongoose.connect(
   console.error('❌ MongoDB Error:', err);
 });
 
-// ─────────────────────────────────────────────
-// Root Route
-// ─────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   ROOT
+───────────────────────────────────────────── */
 
 app.get('/', (req, res) => {
+
   res.json({
     status: 'ok',
     message: 'NeuralChat API is running'
   });
 });
 
-// ─────────────────────────────────────────────
-// Get All Conversations
-// ─────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   GET ALL CONVERSATIONS
+───────────────────────────────────────────── */
 
 app.get('/api/conversations', async (req, res) => {
 
@@ -109,15 +143,17 @@ app.get('/api/conversations', async (req, res) => {
 
   } catch (err) {
 
+    console.error(err);
+
     res.status(500).json({
       error: err.message
     });
   }
 });
 
-// ─────────────────────────────────────────────
-// Get Single Conversation
-// ─────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   GET SINGLE CONVERSATION
+───────────────────────────────────────────── */
 
 app.get('/api/conversations/:sessionId', async (req, res) => {
 
@@ -128,6 +164,7 @@ app.get('/api/conversations/:sessionId', async (req, res) => {
     });
 
     if (!conv) {
+
       return res.status(404).json({
         error: 'Conversation not found'
       });
@@ -143,9 +180,9 @@ app.get('/api/conversations/:sessionId', async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────
-// Create Conversation
-// ─────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   CREATE CONVERSATION
+───────────────────────────────────────────── */
 
 app.post('/api/conversations', async (req, res) => {
 
@@ -176,9 +213,9 @@ app.post('/api/conversations', async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────
-// Update Conversation
-// ─────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   UPDATE CONVERSATION
+───────────────────────────────────────────── */
 
 app.patch('/api/conversations/:sessionId', async (req, res) => {
 
@@ -196,6 +233,7 @@ app.patch('/api/conversations/:sessionId', async (req, res) => {
     });
 
     if (!conv) {
+
       return res.status(404).json({
         error: 'Conversation not found'
       });
@@ -229,9 +267,9 @@ app.patch('/api/conversations/:sessionId', async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────
-// Delete Conversation
-// ─────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   DELETE CONVERSATION
+───────────────────────────────────────────── */
 
 app.delete('/api/conversations/:sessionId', async (req, res) => {
 
@@ -253,9 +291,9 @@ app.delete('/api/conversations/:sessionId', async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────
-// Clear Messages
-// ─────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   CLEAR MESSAGES
+───────────────────────────────────────────── */
 
 app.delete('/api/conversations/:sessionId/messages', async (req, res) => {
 
@@ -266,6 +304,7 @@ app.delete('/api/conversations/:sessionId/messages', async (req, res) => {
     });
 
     if (!conv) {
+
       return res.status(404).json({
         error: 'Conversation not found'
       });
@@ -287,21 +326,21 @@ app.delete('/api/conversations/:sessionId/messages', async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────
-// Streaming Chat Endpoint (SSE)
-// ─────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   STREAM CHAT
+───────────────────────────────────────────── */
 
 app.post('/api/conversations/:sessionId/stream', async (req, res) => {
 
   const { message } = req.body;
 
   if (!message?.trim()) {
+
     return res.status(400).json({
       error: 'Message is required'
     });
   }
 
-  // SSE Headers
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -334,13 +373,11 @@ app.post('/api/conversations/:sessionId/stream', async (req, res) => {
       return res.end();
     }
 
-    // Save user message
     conv.messages.push({
       role: 'user',
       content: message
     });
 
-    // Auto generate title
     const userMessages = conv.messages.filter(
       (m) => m.role === 'user'
     );
@@ -373,7 +410,6 @@ app.post('/api/conversations/:sessionId/stream', async (req, res) => {
       }
     });
 
-    // Save assistant response
     conv.messages.push({
       role: 'assistant',
       content: fullResponse
@@ -400,17 +436,17 @@ app.post('/api/conversations/:sessionId/stream', async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────
-// Models
-// ─────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   MODELS
+───────────────────────────────────────────── */
 
 app.get('/api/models', (req, res) => {
   res.json(MODELS);
 });
 
-// ─────────────────────────────────────────────
-// Health Check
-// ─────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   HEALTH
+───────────────────────────────────────────── */
 
 app.get('/api/health', (req, res) => {
 
@@ -424,9 +460,9 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// ─────────────────────────────────────────────
-// 404 Handler
-// ─────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   404
+───────────────────────────────────────────── */
 
 app.use((req, res) => {
 
@@ -435,9 +471,9 @@ app.use((req, res) => {
   });
 });
 
-// ─────────────────────────────────────────────
-// Start Server
-// ─────────────────────────────────────────────
+/* ─────────────────────────────────────────────
+   START SERVER
+───────────────────────────────────────────── */
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
