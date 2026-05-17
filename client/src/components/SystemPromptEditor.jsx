@@ -68,7 +68,7 @@ export function SystemPromptEditor({ conversation, onUpdate }) {
   if (!conversation) return null;
 
   return (
-    <div style={{
+    <div className="system-prompt-editor" style={{
       borderBottom: '1px solid var(--border)',
       background: 'var(--bg-elevated)'
     }}>
