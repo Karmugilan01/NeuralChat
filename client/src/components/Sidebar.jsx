@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { MessageSquare, Plus, Trash2, Search, Bot } from 'lucide-react';
 
-export function Sidebar({ conversations, activeId, onSelect, onCreate, onDelete }) {
+export function Sidebar({ conversations, activeId, onSelect, onCreate, onDelete, onClose, className = 'app-sidebar' }) {
   const [search, setSearch] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
 
@@ -20,15 +20,41 @@ export function Sidebar({ conversations, activeId, onSelect, onCreate, onDelete 
   }
 
   return (
-    <aside style={{
+    <aside className={className} style={{
       width: 'var(--sidebar-w)',
       borderRight: '1px solid var(--border)',
       background: 'var(--bg-elevated)',
       display: 'flex',
       flexDirection: 'column',
-      height: '100%',
+      height: '100vh',
       flexShrink: 0
     }}>
+      {/* Mobile close */}
+      {onClose && (
+        <button
+          type="button"
+          onClick={onClose}
+          className="sidebar-close"
+          aria-label="Close sidebar"
+          style={{
+            display: 'flex',
+            position: 'absolute',
+            top: 14,
+            right: 14,
+            width: 30,
+            height: 30,
+            borderRadius: 10,
+            background: 'var(--bg)',
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          ×
+        </button>
+      )}
+
       {/* Logo */}
       <div style={{
         padding: '16px',
