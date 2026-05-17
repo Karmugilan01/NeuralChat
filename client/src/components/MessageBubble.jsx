@@ -186,7 +186,7 @@ export function MessageBubble({ message, isStreaming }) {
 
   return (
     <div
-      className="fade-in"
+      className={`message-bubble fade-in ${isUser ? 'message-bubble--user' : 'message-bubble--ai'}`}
       style={{
         display: 'flex',
         flexDirection: isUser ? 'row-reverse' : 'row',
@@ -213,8 +213,8 @@ export function MessageBubble({ message, isStreaming }) {
       </div>
 
       {/* Content */}
-      <div style={{ maxWidth: '75%', minWidth: 60 }}>
-        <div style={{
+      <div className="message-bubble__content-wrapper" style={{ maxWidth: '75%', minWidth: 60 }}>
+        <div className="message-bubble__content" style={{
           padding: '11px 15px',
           borderRadius: isUser
             ? 'var(--radius) var(--radius-sm) var(--radius) var(--radius)'
