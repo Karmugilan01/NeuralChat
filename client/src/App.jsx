@@ -85,9 +85,18 @@ export default function App() {
   } = useChat();
 
   const messagesEndRef = useRef(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  useEffect(() => { loadConversations(); }, []);
+  useEffect(() => {
+    loadConversations();
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => setSidebarOpen(window.innerWidth > 920);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -97,27 +106,26 @@ export default function App() {
   const displayMessages = activeConversation?.messages || [];
 
   return (
-    <div style={{
-      display: 'flex',
-      height: '100vh',
-      overflow: 'hidden',
-      background: 'var(--bg)'
-    }}>
+    <div className="app-shell">
+      <div className={`sidebar-backdrop ${sidebarOpen ? 'active' : ''}`} onClick={() => setSidebarOpen(false)} />
+
       {/* Sidebar */}
       {sidebarOpen && (
         <Sidebar
+          className="app-sidebar open"
           conversations={conversations}
           activeId={activeConversation?.sessionId}
           onSelect={selectConversation}
           onCreate={createConversation}
           onDelete={deleteConversation}
+          onClose={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Main content */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+      <div className="app-main">
         {/* Header */}
-        <header style={{
+        <header className="app-header" style={{
           height: 'var(--header-h)',
           borderBottom: '1px solid var(--border)',
           display: 'flex',
@@ -236,11 +244,7 @@ export default function App() {
             </div>
           </div>
         ) : (
-          <div style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '20px 24px'
-          }}>
+          <div className="messages-panel">
             {displayMessages.length === 0 ? (
               <div style={{
                 textAlign: 'center', padding: '60px 20px',
@@ -305,7 +309,7 @@ export default function App() {
 
         {/* Input */}
         {activeConversation && (
-          <ChatInput onSend={sendMessage} disabled={isStreaming} />
+          <ChatInput className="chat-input" onSend={sendMessage} disabled={isStreaming} />
         )}
       </div>
 
