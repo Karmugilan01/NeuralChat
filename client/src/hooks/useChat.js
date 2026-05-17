@@ -1,3 +1,5 @@
+// src/hooks/useChat.js
+
 import { useState, useCallback, useRef } from 'react';
 import {
   getConversations,
@@ -6,7 +8,7 @@ import {
   updateConversation as apiUpdateConversation,
   deleteConversation as apiDeleteConversation,
   clearConversationMessages,
-  streamChat
+  streamChat,
 } from '../utils/api.js';
 
 export function useChat() {
@@ -18,7 +20,6 @@ export function useChat() {
   const [error, setError] = useState(null);
   const abortRef = useRef(false);
 
-  // Load conversation list
   const loadConversations = useCallback(async () => {
     try {
       const list = await getConversations();
@@ -28,7 +29,6 @@ export function useChat() {
     }
   }, []);
 
-  // Select a conversation and load it fully
   const selectConversation = useCallback(async (sessionId) => {
     setIsLoading(true);
     setError(null);
@@ -42,7 +42,6 @@ export function useChat() {
     }
   }, []);
 
-  // Create new conversation
   const createConversation = useCallback(async (options = {}) => {
     try {
       const conv = await apiCreateConversation(options);
@@ -54,7 +53,6 @@ export function useChat() {
     }
   }, []);
 
-  // Delete conversation
   const deleteConversation = useCallback(async (sessionId) => {
     await apiDeleteConversation(sessionId);
     setConversations(prev => prev.filter(c => c.sessionId !== sessionId));
@@ -63,16 +61,14 @@ export function useChat() {
     }
   }, [activeConversation]);
 
-  // Send a message with streaming
   const sendMessage = useCallback(async (text) => {
     if (!activeConversation || isStreaming || !text.trim()) return;
 
     const userMessage = { role: 'user', content: text, timestamp: new Date() };
 
-    // Optimistically add user message
     setActiveConversation(prev => ({
       ...prev,
-      messages: [...prev.messages, userMessage]
+      messages: [...prev.messages, userMessage],
     }));
 
     setIsStreaming(true);
@@ -94,16 +90,15 @@ export function useChat() {
         const assistantMessage = {
           role: 'assistant',
           content: accumulated,
-          timestamp: new Date()
+          timestamp: new Date(),
         };
 
         setActiveConversation(prev => ({
           ...prev,
           title,
-          messages: [...prev.messages, assistantMessage]
+          messages: [...prev.messages, assistantMessage],
         }));
 
-        // Update title in sidebar
         setConversations(prev =>
           prev.map(c =>
             c.sessionId === activeConversation.sessionId
@@ -119,11 +114,10 @@ export function useChat() {
         setError(msg);
         setStreamingText('');
         setIsStreaming(false);
-      }
+      },
     });
   }, [activeConversation, isStreaming]);
 
-  // Update system prompt or model
   const updateConversation = useCallback(async (updates) => {
     if (!activeConversation) return;
     try {
@@ -137,16 +131,16 @@ export function useChat() {
     }
   }, [activeConversation]);
 
-  // Clear messages
   const clearMessages = useCallback(async () => {
     if (!activeConversation) return;
     try {
       const updated = await clearConversationMessages(activeConversation.sessionId);
       setActiveConversation(updated);
       setConversations(prev =>
-        prev.map(c => c.sessionId === updated.sessionId
-          ? { ...c, title: 'New Conversation' }
-          : c
+        prev.map(c =>
+          c.sessionId === updated.sessionId
+            ? { ...c, title: 'New Conversation' }
+            : c
         )
       );
     } catch (err) {
@@ -168,6 +162,6 @@ export function useChat() {
     sendMessage,
     updateConversation,
     clearMessages,
-    setError
+    setError,
   };
 }
