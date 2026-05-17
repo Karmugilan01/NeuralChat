@@ -19,7 +19,7 @@ app.set('trust proxy', 1);
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://neural-chat-ivory.vercel.app'
+  'https://neural-chat-ten.vercel.app/'
 ];
 
 app.use(cors({
