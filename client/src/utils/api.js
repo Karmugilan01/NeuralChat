@@ -15,22 +15,18 @@ async function request(path, options = {}) {
   // Handle non-JSON errors safely
   if (!response.ok) {
     let errorMessage = `Request failed: ${response.status}`;
-
     try {
       const text = await response.text();
       if (text) errorMessage = text;
     } catch {}
-
     throw new Error(errorMessage);
   }
 
   // Handle empty responses
   const contentType = response.headers.get("content-type");
-
   if (contentType && contentType.includes("application/json")) {
     return response.json();
   }
-
   return response.text();
 }
 
@@ -92,16 +88,19 @@ export async function streamChat({
   onError,
 }) {
   try {
-    const response = await fetch(`${API_BASE}/api/chat`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        sessionId,
-        message,
-      }),
-    });
+    // ✅ FIXED: was incorrectly pointing to /api/chat
+    // The server route is: POST /api/conversations/:sessionId/stream
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${sessionId}/stream`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        // ✅ FIXED: sessionId goes in the URL, not the body
+        body: JSON.stringify({ message }),
+      }
+    );
 
     if (!response.ok) {
       throw new Error(`Chat failed: ${response.status}`);
@@ -109,25 +108,19 @@ export async function streamChat({
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
-
     let buffer = "";
 
     while (true) {
       const { done, value } = await reader.read();
-
       if (done) break;
 
       buffer += decoder.decode(value, { stream: true });
-
       const parts = buffer.split("\n\n");
-
       buffer = parts.pop();
 
       for (const part of parts) {
         if (!part.startsWith("data:")) continue;
-
         const json = part.replace("data:", "").trim();
-
         if (!json) continue;
 
         try {
@@ -136,13 +129,11 @@ export async function streamChat({
           if (parsed.type === "chunk") {
             onChunk?.(parsed.text || "");
           }
-
           if (parsed.type === "done") {
             onDone?.(parsed);
           }
-
           if (parsed.type === "error") {
-            onError?.(parsed.error || "Unknown error");
+            onError?.(parsed.message || "Unknown error");
           }
         } catch (err) {
           console.error("SSE Parse Error:", err);
