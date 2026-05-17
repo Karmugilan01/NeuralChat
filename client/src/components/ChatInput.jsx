@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Square } from 'lucide-react';
 
-export function ChatInput({ onSend, disabled }) {
+export function ChatInput({ onSend, disabled, className = '' }) {
   const [text, setText] = useState('');
   const textareaRef = useRef(null);
 
@@ -37,7 +37,7 @@ export function ChatInput({ onSend, disabled }) {
   };
 
   return (
-    <div style={{
+    <div className={`chat-input ${className}`} style={{
       padding: '14px 20px 18px',
       borderTop: '1px solid var(--border)',
       background: 'var(--bg)'
