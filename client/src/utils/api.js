@@ -1,50 +1,119 @@
+// src/utils/api.js
+
 const API_BASE =
-  'https://neuralchat-zx5u.onrender.com';
+  import.meta.env.VITE_API_URL ||
+  "https://neuralchat-zx5u.onrender.com";
 
 async function request(path, options = {}) {
-
-  const response = await fetch(
-    `${API_BASE}${path}`,
-    {
-      headers: {
-        'Content-Type': 'application/json'
-      },
-
-      credentials: 'include',
-
-      ...options
-    }
-  );
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: { "Content-Type": "application/json" },
+    ...options,
+  });
 
   if (!response.ok) {
-
-    const error = await response.text();
-
-    throw new Error(error);
+    let errorMessage = `Request failed: ${response.status}`;
+    try {
+      const text = await response.text();
+      if (text) errorMessage = text;
+    } catch {}
+    throw new Error(errorMessage);
   }
 
-  return response.json();
+  const contentType = response.headers.get("content-type");
+  if (contentType && contentType.includes("application/json")) {
+    return response.json();
+  }
+  return response.text();
 }
 
-export const getConversations = () =>
-  request('/api/conversations');
+/* Conversations */
 
-export const getConversation = (id) =>
-  request(`/api/conversations/${id}`);
+export async function getConversations() {
+  return request("/api/conversations");
+}
 
-export const createConversation = (data) =>
-  request('/api/conversations', {
-    method: 'POST',
-    body: JSON.stringify(data)
+export async function getConversation(sessionId) {
+  return request(`/api/conversations/${sessionId}`);
+}
+
+export async function createConversation(data = {}) {
+  return request("/api/conversations", {
+    method: "POST",
+    body: JSON.stringify(data),
   });
+}
 
-export const updateConversation = (id, data) =>
-  request(`/api/conversations/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(data)
+export async function updateConversation(sessionId, data) {
+  return request(`/api/conversations/${sessionId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
   });
+}
 
-export const deleteConversation = (id) =>
-  request(`/api/conversations/${id}`, {
-    method: 'DELETE'
+export async function deleteConversation(sessionId) {
+  return request(`/api/conversations/${sessionId}`, {
+    method: "DELETE",
   });
+}
+
+export async function clearConversationMessages(sessionId) {
+  return request(`/api/conversations/${sessionId}/messages`, {
+    method: "DELETE",
+  });
+}
+
+/* Models */
+
+export async function getModels() {
+  return request("/api/models");
+}
+
+/* Streaming Chat (SSE) */
+
+export async function streamChat({ sessionId, message, onChunk, onDone, onError }) {
+  try {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${sessionId}/stream`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Chat failed: ${response.status}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop();
+
+      for (const part of parts) {
+        if (!part.startsWith("data:")) continue;
+        const json = part.replace("data:", "").trim();
+        if (!json) continue;
+
+        try {
+          const parsed = JSON.parse(json);
+          if (parsed.type === "chunk") onChunk?.(parsed.text || "");
+          if (parsed.type === "done") onDone?.(parsed);
+          if (parsed.type === "error") onError?.(parsed.message || "Unknown error");
+        } catch (err) {
+          console.error("SSE Parse Error:", err);
+        }
+      }
+    }
+  } catch (error) {
+    console.error(error);
+    onError?.(error.message);
+  }
+}
